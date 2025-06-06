@@ -6,6 +6,10 @@ from typing import Optional
 
 from pywinauto import Application
 from pywinauto.application import WindowSpecification
+from pywinauto import timings
+
+timings.Timings.window_find_timeout = 15
+timings.Timings.app_start_timeout = 15
 
 
 _app: Optional[Application] = None
