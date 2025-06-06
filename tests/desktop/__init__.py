@@ -1,10 +1,9 @@
-import os
-import sys
-import pytest
+import os, sys, pytest
 
-# hosted Windows runners (windows-latest) não têm desktop interativo
-if os.getenv("CI"):
-    pytest.xfail("Skipping GUI test: no interactive desktop on hosted runner")
-
-if sys.platform != "win32":
-    pytest.skip("Desktop tests require Windows", allow_module_level=True)
+# Skip the entire desktop test suite when running on hosted CI runners
+# or on any non-Windows platform.
+if os.getenv("CI") or sys.platform != "win32":
+    pytest.skip(
+        "Desktop tests require an interactive Windows session",
+        allow_module_level=True
+    )
