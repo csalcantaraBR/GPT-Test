@@ -19,8 +19,11 @@ class CalculatorPage:
             self.app = Application(backend="uia").connect(path="Calculator.exe")
         except Exception:
             self.app = Application(backend="uia").start("calc.exe")
-        self.window = self.app.window(title_re="Calculator")
-        self.window.wait("visible")
+
+        window = self.app.window(title_re="Calculator")
+        window.wait("visible", timeout=15)
+        self.dlg = window  # store for later use
+        self.window = window
         return self
 
     # ---- helpers -----------------------------------------------------
