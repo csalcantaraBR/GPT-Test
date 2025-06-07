@@ -20,8 +20,19 @@ class CalculatorPage:
         except Exception:
             self.app = Application(backend="uia").start("calc.exe")
 
-        window = self.app.window(title_re="Calculator")
-        window.wait("visible", timeout=15)
+        try:
+            window = self.app.window(
+                title="Calculator",
+                class_name="ApplicationFrameWindow",
+            )
+            window.wait("visible", timeout=30)
+        except Exception:
+            # fallback to searching via Desktop object
+            window = Desktop(backend="uia").window(
+                title="Calculator",
+                class_name="ApplicationFrameWindow",
+            )
+            window.wait("visible", timeout=30)
         self.dlg = window  # store for later use
         self.window = window
         return self
@@ -42,6 +53,17 @@ class CalculatorPage:
         if not button_name:
             raise ValueError(f"Unsupported operator: {operator}")
         getattr(self.window, button_name).click()
+
+    def press(self, key):
+        """Press a digit, operator or equals button based on ``key``."""
+        if isinstance(key, int):
+            self.press_number(key)
+        elif key in {"+", "-", "*", "/"}:
+            self.press_operator(key)
+        elif key == "=":
+            self.press_equals()
+        else:
+            raise ValueError(f"Unsupported key: {key}")
 
     def press_equals(self) -> None:
         self.window.EqualsButton.click()

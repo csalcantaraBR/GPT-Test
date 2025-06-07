@@ -8,8 +8,8 @@ from pywinauto import Application
 from pywinauto.application import WindowSpecification
 from pywinauto import timings
 
-timings.Timings.window_find_timeout = 15
-timings.Timings.app_start_timeout = 15
+timings.Timings.window_find_timeout = 30
+timings.Timings.app_start_timeout = 30
 
 
 _app: Optional[Application] = None
@@ -28,11 +28,11 @@ def get_app(app_path: str) -> Application:
     return _app
 
 
-def find_window(title_regex: str) -> WindowSpecification:
+def find_window(title_regex: str, class_name: str | None = None) -> WindowSpecification:
     """Return a window matching ``title_regex`` from the initialized app."""
     if _app is None:
         raise RuntimeError("Application not initialized. Call get_app() first.")
-    return _app.window(title_re=title_regex)
+    return _app.window(title_re=title_regex, class_name=class_name)
 
 
 def close_app() -> None:
