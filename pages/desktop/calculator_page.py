@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pywinauto.application import Application
-from pywinauto import Desktop
+from pywinauto import Application, Desktop, timings
+import time
 import re
 
 
@@ -14,49 +14,55 @@ class CalculatorPage:
         self.app: Application | None = None
         self.window = None
 
+    # ------------------------------------------------------------------
+    def _start_or_attach(self) -> None:
+        """Start Calculator or attach to an existing instance."""
+        try:
+            # Try connecting to a running calculator first.
+            self.app = Application(backend="uia").connect(
+                title_re=r"(Calculadora|Calculator).*", timeout=5
+            )
+        except Exception:
+            # If not running, launch a new instance.
+            self.app = Application(backend="uia").start("calc.exe")
+            # Allow the UWP frame some time to initialize.
+            time.sleep(1)
+
+    def _find_main_window(self, timeout: int = 45):
+        """Return the Calculator window, waiting until it exists."""
+        regex = re.compile(r"(Calculadora|Calculator).*", re.I)
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            try:
+                win = Desktop(backend="uia").window(
+                    title_re=regex, control_type="Window", top_level_only=True
+                )
+                if win.exists(timeout=1):
+                    win.wait("visible", timeout=10)
+                    win.wait_cpu_usage_lower(threshold=5, timeout=10)
+                    return win.wrapper_object()
+            except Exception:
+                pass
+            time.sleep(0.5)
+        raise RuntimeError(f"Calculator window not found after {timeout} s")
+
+    # ------------------------------------------------------------------
     def open(self) -> "CalculatorPage":
         """Launch or connect to the Calculator application."""
-        backend = "uia"
-
-        # First attempt to connect to an already running instance. If that
-        # fails, start a new one and connect to its process.
-        try:
-            self.app = Application(backend=backend).connect(path="Calculator.exe")
-        except Exception:
-            started = Application(backend=backend).start("calc.exe")
-            self.app = Application(backend=backend).connect(process=started.process)
-
-        # Support both English and Portuguese titles and allow suffixes ("Calculator - 1").
-        title_re = re.compile(r"(Calculator|Calculadora).*", re.I)
-
-        # Locate the main window and dive into the child window if needed.
-        window = self.app.window(title_re=title_re)
-        if window.element_info.class_name == "ApplicationFrameWindow":
-            window = window.child_window(title_re=title_re, control_type="Window")
-
-        # Wait for the window to appear.
-        try:
-            window.wait("visible", timeout=15)
-        except Exception as e:
-            raise RuntimeError("Calculator window not found") from e
-
-        window.set_focus()
-        window = window.wrapper_object()
-
-        # Store the window for later interactions
-        self.dlg = window
-        self.window = window
+        self._start_or_attach()
+        self.window = self._find_main_window()
+        self.window.set_focus()
         return self
 
     def close(self) -> None:
-        """Close the Calculator application if it's running."""
-        if self.app is not None:
+        """Close the Calculator window if it's open."""
+        if self.window:
             try:
-                self.app.kill()
-            finally:
-                self.app = None
-                self.window = None
-                self.dlg = None
+                self.window.close()
+            except Exception:
+                pass
+        self.app = None
+        self.window = None
 
     # ---- helpers -----------------------------------------------------
     def press_number(self, number: int) -> None:
