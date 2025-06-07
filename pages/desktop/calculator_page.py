@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pywinauto.application import Application
 from pywinauto import Desktop
+import re
 
 
 class CalculatorPage:
@@ -25,39 +26,22 @@ class CalculatorPage:
             started = Application(backend=backend).start("calc.exe")
             self.app = Application(backend=backend).connect(process=started.process)
 
-        title_regex = r".*Calculat(or|rice|ora).*"
+        # Support both English and Portuguese titles and allow suffixes ("Calculator - 1").
+        title_re = re.compile(r"(Calculator|Calculadora).*", re.I)
 
-        # Try locating the outer ApplicationFrameWindow using regex so the
-        # title works across locales. Then grab the inner window where the
-        # controls actually live.
+        # Locate the main window and dive into the child window if needed.
+        window = self.app.window(title_re=title_re)
+        if window.element_info.class_name == "ApplicationFrameWindow":
+            window = window.child_window(title_re=title_re, control_type="Window")
+
+        # Wait for the window to appear.
         try:
-            root = self.app.window(
-                title_re=title_regex, class_name="ApplicationFrameWindow"
-            )
-            window = (
-                root.child_window(
-                    title_re=r".*Calculator.*", control_type="Window"
-                )
-                .wrapper_object()
-            )
-            window.wait("visible", timeout=45)
-            window.wait_cpu_usage_lower(threshold=5, timeout=45)
+            window.wait("visible", timeout=15)
         except Exception as e:
-            # Fallback to searching from the Desktop if the direct lookup fails
-            try:
-                root = Desktop(backend=backend).window(
-                    title_re=title_regex, class_name="ApplicationFrameWindow"
-                )
-                window = (
-                    root.child_window(
-                        title_re=r".*Calculator.*", control_type="Window"
-                    )
-                    .wrapper_object()
-                )
-                window.wait("visible", timeout=45)
-                window.wait_cpu_usage_lower(threshold=5, timeout=45)
-            except Exception:
-                raise RuntimeError("Calculator window not found") from e
+            raise RuntimeError("Calculator window not found") from e
+
+        window.set_focus()
+        window = window.wrapper_object()
 
         # Store the window for later interactions
         self.dlg = window
