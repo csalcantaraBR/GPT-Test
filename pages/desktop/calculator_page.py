@@ -29,15 +29,24 @@ class CalculatorPage:
             time.sleep(1)
 
     def _find_main_window(self, timeout: int = 45):
-        """Return the Calculator window, waiting until it exists."""
+        """Return the inner Calculator window, waiting until it exists."""
         regex = re.compile(r"(Calculadora|Calculator).*", re.I)
         end_time = time.time() + timeout
         while time.time() < end_time:
             try:
-                win = Desktop(backend="uia").window(
-                    title_re=regex, control_type="Window", top_level_only=True
+                root = Desktop(backend="uia").window(
+                    title_re=regex,
+                    class_name="ApplicationFrameWindow",
+                    control_type="Window",
+                    top_level_only=True,
                 )
-                if win.exists(timeout=1):
+                if root.exists(timeout=1):
+                    # Some Windows versions show an inner child window with the same title
+                    inner = root.child_window(title_re=regex, control_type="Window")
+                    if inner.exists(timeout=15):
+                        win = inner
+                    else:
+                        win = root
                     win.wait("visible", timeout=10)
                     win.wait_cpu_usage_lower(threshold=5, timeout=10)
                     return win.wrapper_object()
@@ -50,6 +59,15 @@ class CalculatorPage:
     def open(self) -> "CalculatorPage":
         """Launch or connect to the Calculator application."""
         self._start_or_attach()
+
+        # After starting, grab the root window for later use
+        root = self.app.window(
+            title_re=r"(Calculadora|Calculator).*",
+            class_name="ApplicationFrameWindow",
+        )
+        root.wait("visible", timeout=15)
+        self.dlg = root
+
         self.window = self._find_main_window()
         self.window.set_focus()
         return self
