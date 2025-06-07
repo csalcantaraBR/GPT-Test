@@ -5,3 +5,4 @@ python-dotenv
 pywinauto>=0.6.8
 pyautogui
 py3270
+pytest-html
