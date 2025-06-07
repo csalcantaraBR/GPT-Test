@@ -14,28 +14,65 @@ class CalculatorPage:
         self.window = None
 
     def open(self) -> "CalculatorPage":
-        """Attach to a running Calculator or start a new one."""
-        try:
-            self.app = Application(backend="uia").connect(path="Calculator.exe")
-        except Exception:
-            self.app = Application(backend="uia").start("calc.exe")
+        """Launch or connect to the Calculator application."""
+        backend = "uia"
 
+        # First attempt to connect to an already running instance. If that
+        # fails, start a new one and connect to its process.
         try:
-            window = self.app.window(
-                title="Calculator",
-                class_name="ApplicationFrameWindow",
-            )
-            window.wait("visible", timeout=30)
+            self.app = Application(backend=backend).connect(path="Calculator.exe")
         except Exception:
-            # fallback to searching via Desktop object
-            window = Desktop(backend="uia").window(
-                title="Calculator",
-                class_name="ApplicationFrameWindow",
+            started = Application(backend=backend).start("calc.exe")
+            self.app = Application(backend=backend).connect(process=started.process)
+
+        title_regex = r".*Calculat(or|rice|ora).*"
+
+        # Try locating the outer ApplicationFrameWindow using regex so the
+        # title works across locales. Then grab the inner window where the
+        # controls actually live.
+        try:
+            root = self.app.window(
+                title_re=title_regex, class_name="ApplicationFrameWindow"
             )
-            window.wait("visible", timeout=30)
-        self.dlg = window  # store for later use
+            window = (
+                root.child_window(
+                    title_re=r".*Calculator.*", control_type="Window"
+                )
+                .wrapper_object()
+            )
+            window.wait("visible", timeout=45)
+            window.wait_cpu_usage_lower(threshold=5, timeout=45)
+        except Exception as e:
+            # Fallback to searching from the Desktop if the direct lookup fails
+            try:
+                root = Desktop(backend=backend).window(
+                    title_re=title_regex, class_name="ApplicationFrameWindow"
+                )
+                window = (
+                    root.child_window(
+                        title_re=r".*Calculator.*", control_type="Window"
+                    )
+                    .wrapper_object()
+                )
+                window.wait("visible", timeout=45)
+                window.wait_cpu_usage_lower(threshold=5, timeout=45)
+            except Exception:
+                raise RuntimeError("Calculator window not found") from e
+
+        # Store the window for later interactions
+        self.dlg = window
         self.window = window
         return self
+
+    def close(self) -> None:
+        """Close the Calculator application if it's running."""
+        if self.app is not None:
+            try:
+                self.app.kill()
+            finally:
+                self.app = None
+                self.window = None
+                self.dlg = None
 
     # ---- helpers -----------------------------------------------------
     def press_number(self, number: int) -> None:
