@@ -1,4 +1,4 @@
-# GPT-Test
+# Py-Test
 
 Automation project for **web** and **desktop** apps using Playwright, Pytest, and Pywinauto.
 
