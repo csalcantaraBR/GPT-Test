@@ -3,3 +3,11 @@ selenium
 webdriver-manager
 pytest-html
 python-dotenv
+playwright
+pytest
+pytest-playwright
+python-dotenv
+pywinauto>=0.6.8
+pyautogui
+py3270
+pytest-html
